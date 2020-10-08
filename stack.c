@@ -1,10 +1,38 @@
+/*!
+    @file
+    @brief stack source code
+*/
+
+//==================ABOUT_DEFINES
+/*
+    -Dstack_multy_capacity
+        +stack can resize-auto
+        +stack init have not capacity
+
+    -Dstack_init_checker
+        +stack can check init or not
+
+    -Dstack_init_checker_del_rubbish
+        +stack init check if stack delete
+
+    -Dstack_mem_birds
+        +stack have canary
+
+    -Dstack_hash_checker
+        +stack check hash-sums of his elements
+
+    -Dstack_poison
+        +stack elements now is poison if not pushed
+
+    -Dstack_dump
+        +stack can dump                     
+        
+*/
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <limits.h>
-
-
-typedef int stack_elem;
 
 
 #ifdef stack_multy_capacity
@@ -16,8 +44,27 @@ static const int de_multy_of_capacity      = 2;
 static const int stack_maximum_capacity    = 100000000;
 #endif
 
-#ifdef stack_mem_birds
+//type of stack element values----------------------------
+typedef int stack_elem;
 
+#ifdef stack_poison
+
+static stack_elem poison_value             = -INT_MAX;
+#endif
+
+#ifdef stack_dump
+
+#define STACK_ELEM_PRINTF_IDENT            "%d"
+#endif
+
+#ifdef stack_mem_birds
+//------------------------------------------------------
+
+/*!
+    @brief this struct is mem_bird
+    - cell_ptr it is a ptr to interesting byte
+    - exp_ptr it is a expected value of interesting byte
+*/
 struct _mem_bird
 {
 
@@ -27,6 +74,17 @@ struct _mem_bird
 typedef struct _mem_bird mem_bird;
 #endif
 
+/*!
+    @brief this struct is stack
+    - data it is a buffer, where stack keep his memory
+    - size size of stack
+    - capacity capacity of stack
+    - st_l_byte mem_bird to first byte of struct
+    - st_r_byte mem_bird to last byte of struct
+    - buf_l_byte mem_bird to first byte of data
+    - buf_r_byte mem_bird to last byte of data
+    - hash_sum poli-hash of stack elements
+*/
 struct _Stack 
 {
 
@@ -60,11 +118,6 @@ static size_t arr_of_stack_ptr_size        = 0;
 static int top_unused_arr_of_stack_ptr     = 0;
 #endif
 
-#ifdef stack_poison
-
-static stack_elem poison_value             = -INT_MAX;
-#endif
-
 
 #ifdef stack_hash_checker
 
@@ -76,11 +129,10 @@ static int stack_hash_base                 = 103;
 typedef enum _stack_return_code
 {
 
-    STACK_IS_NOT_EMPTY,
-    STACK_IS_EMPTY,
     STACK_OK,
     STACK_NULL_POINTER,
     STACK_DATA_UNDERFLOW,
+    STACK_IS_EMPTY,
 
 #ifdef stack_multy_capacity
 
@@ -120,26 +172,87 @@ typedef enum _stack_return_code
 
 #ifdef stack_multy_capacity
 
+/*!
+    @brief this func init stack if multy_capacity is on
+    @param st ptr to stack, that need to init
+    @return stack_return_code
+*/
 stack_return_code Stack_init     (Stack *st);
-
 #else
 
+/*!
+    @brief this func init stack if multy_capacity is off
+    @param st ptr to stack, that need to init
+    @return stack_return_code
+*/
 stack_return_code Stack_init     (Stack *st, const size_t cap);
 #endif
 
+/*!
+    @brief this func push val into stack
+    @param st ptr to stack, where we want push val
+    @param val val, that we want push
+    @return stack_return_code
+*/
 stack_return_code Stack_push     (Stack *st, const stack_elem val);
 
-stack_return_code Stack_is_empty (Stack *st);
+/*!
+    @brief this func check, stack is empty or not
+    @param st ptr to stack, that we want check
+    @val, ptr to bool, where we want set info about stack 
+    @return stack_return_code
+*/
+stack_return_code Stack_is_empty (Stack *st, bool *val);
 
+/*!
+    @brief this func pop val from stack
+    @param st ptr to stack, that we want pop
+    @return stack_return_code
+*/
 stack_return_code Stack_pop      (Stack *st);
 
+/*!
+    @brief this func delete stack
+    @param st ptr to stack, that we want delete
+    @return stack_return_code
+*/
 stack_return_code Stack_delete   (Stack *st);
 
+/*!
+    @brief this func check top val of stack
+    @param st ptr to stack, that we want check
+    @param val ptr to val, where we want set info
+    @return stack_return_code
+*/
 stack_return_code Stack_top      (Stack *st, stack_elem *val);
 
+/*!
+    @brief this func check size of stack 
+    @param st ptr to stack, that we want check
+    @param val ptr to val, where we want set info
+    @return stack_return_code
+*/
 stack_return_code Stack_size     (Stack *st, size_t *val);
 
+/*!
+    @brief this func check capacity of stack 
+    @param st ptr to stack, that we want check 
+    @param val ptr to val, where we want set info
+    @return stack_return_code
+*/
 stack_return_code Stack_capacity (Stack *st, size_t *val);
+
+#ifdef stack_dump
+
+/*!
+    @brief this func print dump
+    @param st ptr to stack, that we want dump
+    @param depth how muth stack_elemnt we want dump
+    @return void
+*/
+void Stack_dump                  (Stack *st, const size_t depth);
+#endif
+
 
 #ifdef stack_multy_capacity
 
@@ -168,28 +281,6 @@ static long long hash_of_stack      (Stack *st);
 static void pour_poison             (Stack *st);
 static bool check_poison            (Stack *st);
 #endif
-
-#ifdef stack_dump
-
-#define STACK_ELEM_PRINTF_IDENT     "%d"
-void Stack_dump                     (Stack *st, const size_t depth);
-#endif
-
-int main ()
-{
-
-    Stack a;
-    Stack_init(&a);
-
-    for (int i = 0; i < 10; ++i)
-        Stack_push(&a, i);
-
-    Stack_dump(&a, 15);
-
-    Stack_delete(&a);
-
-    return 0;
-}
 
 //===========================================================================================
 
@@ -230,6 +321,7 @@ int main ()
 
 //===========================================================================================
 
+
 #ifdef stack_multy_capacity
 
 stack_return_code Stack_init (Stack *st)
@@ -267,7 +359,7 @@ stack_return_code Stack_init (Stack *st)
 
     return STACK_OK;
 }
-#else //#ifndef stack_multy_capacity
+#else 
 
 stack_return_code Stack_init (Stack *st, const size_t cap)
 {
@@ -303,7 +395,7 @@ stack_return_code Stack_init (Stack *st, const size_t cap)
 
     return STACK_OK;
 }
-#endif //stack_multy_capacity
+#endif 
 
 //===========================================================================================
 
@@ -320,7 +412,7 @@ stack_return_code Stack_push (Stack *st, const stack_elem val)
 #endif
 
 #ifdef stack_mem_birds
-    stack_mem_birds_check
+    stack_mem_birds_check   
 #endif  
 
 #ifdef stack_hash_checker
@@ -383,7 +475,7 @@ stack_return_code Stack_push (Stack *st, const stack_elem val)
 
 //===========================================================================================
 
-stack_return_code Stack_is_empty (Stack *st)
+stack_return_code Stack_is_empty (Stack *st, bool *val)
 {
 
     if (st == NULL)
@@ -414,9 +506,11 @@ stack_return_code Stack_is_empty (Stack *st)
 #endif
 
     if (st->size == 0)
-        return STACK_IS_EMPTY;
+        *val = true;
+    else
+        *val = false;
 
-    return STACK_IS_NOT_EMPTY;
+    return STACK_OK;
 }
 
 //===========================================================================================
@@ -873,13 +967,13 @@ void Stack_dump (Stack *st, const size_t depth)
     printf("    size = %lu\n\n", st->size);
 
     printf("    data [%lu] = %p\n", st->capacity, st->data);
-    printf("        {\n");
+    printf("    {\n\n");
 
     for (int i = 0; i < depth; ++i)
     {
 
         if (i < st->size)
-            printf("       *[%d] = "STACK_ELEM_PRINTF_IDENT, 
+            printf("        *[%d] = "STACK_ELEM_PRINTF_IDENT, 
                    i, st->data[i]);
         else
             printf("        [%d] = "STACK_ELEM_PRINTF_IDENT, 
@@ -894,7 +988,7 @@ void Stack_dump (Stack *st, const size_t depth)
         printf("\n");
     }
 
-    printf("        }\n\n");
+    printf("    }\n\n");
 
     #ifdef stack_hash_checker
 
@@ -912,9 +1006,9 @@ void Stack_dump (Stack *st, const size_t depth)
 
                                                                                             
     if (st->st_r_byte.exp_val != *st->st_r_byte.cell_ptr)                                   
-        printf("    Stack_struct_rigth_bird = DYE\n");
+        printf("    Stack_struct_rigth_bird = DYE\n\n");
     else
-        printf("    Stack_struct_rigth_bird = LIFE\n");                                             
+        printf("    Stack_struct_rigth_bird = LIFE\n\n");                                             
                                                                                             
                                                                                             
     if (st->buf_l_byte.exp_val != *st->buf_l_byte.cell_ptr)                                 
@@ -931,3 +1025,6 @@ void Stack_dump (Stack *st, const size_t depth)
     printf("}\n\n");
 }
 #endif
+
+#undef stack_mem_birds_check
+#undef stack_mem_birds_init
